@@ -1,241 +1,41 @@
 ## Резюме
 
 Для кастомизации компонентов используется ThemeContext:
+
 - чтобы задать тему `ThemeContext.Provider`;
 - использовать тему в своих компонентах `ThemeContext.Consumer`.
 
 Механизм работы: динамические стили генерируются в зависимости от темы в процессе render'а с помощью <a href="https://www.npmjs.com/package/emotion" target="_blank">emotion</a>, полученные классы добавляются в `className` соответствующих элементов.
 
-## Мотивация
+## Цели
 
-На данный момент существует 2 версии библиотеки:
-
-- _retail-ui_ (собирается в целевом проекте) - с возможностью кастомизации на этапе сборки через переопределение переменных в less-файле;
-- _@skbkontur/react-ui_ (собранная версия) - без возможности кастомизации.
-
-Цели <a href="https://github.com/skbkontur/retail-ui/pull/1333" target="_blank">PR #1333</a>:
-
-- предоставить возможность кастомизировать контролы в _@skbkontur/react-ui_ и отказаться от поддержки _retail-ui_;
+- предоставить возможность кастомизировать контролы в _@skbkontur/react-ui_;
 - предоставить возможность менять тему в рантайме и/или для части сервиса;
 - упростить использование переменных из темы в своих компонентах;
-- обеспечить бесшовное обновление для пользователей _retail-ui_;
 - предоставить разработчикам виджетов (виджет продуктов, чат, мастер импорта и т.п.) возможность использовать тему сервиса-потребителя;
 
-## Реализация
+## Использование
 
-### Механизм работы кастомизации
+Перед тем как использовать собственные значение, нужно c помощью `ThemeFactory.create` создать объект `Theme`, и получившуюся тему передать в `ThemeContext.Provider`. `ThemeFactory` расширяет переданный объект задавая в качестве прототипа объект темы по умолчанию.
 
-1. Из файла с переменными (variables.less для стандартной темы, variables.flat.less - для плоской) все значения - после "накатывания" переопределенных в сервисе-потребителе значений - экспортируются в camelCase:
+   ```jsx harmony static
+   import { Button, ButtonProps, Gapped, ThemeContext, ThemeFactory } from '@skbkontur/react-ui';
 
-    ```less
-    @blue_dark: #1e5aa4;
-    @error-main: #d70c17;
-    // ...
-    @import (optional) '~react-ui-theme';
-    // ...
-    @value blueDark: @blue_dark;
-    @value errorMain: @error-main;
-    ```
+   const myTheme = ThemeFactory.create({ btnBorderRadius: '10px' });
 
-    Это позволит пользователям _retail-ui_ "просто обновиться" - их переопределенные переменные будут учтены на 2ом шаге при сборке тем.
+   export const MyComponent = (props: { ok: ButtonProps, cancel: ButtonProps }) => {
+     return (
+       <ThemeContext.Provider value={myTheme}>
+         <Gapped>
+           <Button {...props.ok}>My round OK button</Button>
+           <Button {...props.cancel}>My round Cancel button</Button>
+         </Gapped>
+       </ThemeContext.Provider>
+     );
+   };
+   ```
 
-2. В библиотеке из коробки определены два файла с темами: _lib/theming/themes/DefaultTheme.ts_ и _lib/theming/themes/FlatTheme.ts_.
-   В этих файлах определяются вычисляемые (зависящие от других) переменные, например:
-
-    ```typescript
-    import DEFAULT_VARIABLES from '../../../components/variables.less';
-    import { defineInternalTheme } from './lib/theming/ThemeHelpers';
-
-    const DEFAULT_THEME = defineInternalTheme(DEFAULT_VARIABLES, {
-      borderColorFocus: {
-        get() {
-          return this.blueLight;
-        },
-      },
-      tabColorError: {
-        get() {
-          return this.btnDangerBg;
-        },
-      },
-      tabColorHoverError: {
-        get() {
-          return ColorFunctions.lighten(this.tabColorError, '25%');
-        },
-      },
-      inputFocusShadow: {
-        get() {
-          return `0 0 0 1px ${this.borderColorFocus}`;
-        },
-      },
-    });
-    ```
-
-    Так же создаются 2 интерфейса (_lib/theming/Theme.ts_):
-
-    ```typescript
-    import { DEFAULT_THEME } from '@skbkontur/react-ui/lib/theming/themes/DefaultTheme';
-    import { FLAT_THEME } from '@skbkontur/react-ui/lib/theming/themes/FlatTheme';
-
-    type ThemeType = typeof DEFAULT_THEME & typeof FLAT_THEME;
-    type ThemeInType = Partial<ThemeType>;
-
-    export interface Theme extends ThemeType {}
-    export interface ThemeIn extends ThemeInType {}
-    ```
-
-    **\*ВАЖНО:** файл FlatTheme.ts не используется напрямую ни в одном компоненте и не попадет в итоговый bundle, если не будет использован в явном виде (см. \*Использование плоской темы\_).
-
-3. В статическом классе `ThemeFactory` (_lib/theming/ThemeFactory.ts_) определяется `defaultTheme`.
-   `ThemeFactory` так же предоставляет следующие методы:
-
-    ```typescript
-    class ThemeFactory {
-      // создание новой темы:
-      // - создается новый объект с прототипом defaultTheme;
-      // - накатываются поля (или дескрипторы для вычисляемых полей) из theme.
-      public static create(theme: ThemeIn): Theme;
-
-      // проверяет, является ли тема полной или частичной
-      // используется внутри ThemeProvider, чтобы понять, нужно ли создавать тему
-      public static isFullTheme(theme: ThemeIn): theme is Theme;
-
-      // возвращает дефолтную тему
-      public static getDefaultTheme(): Theme;
-
-      // переопределяет дефолтную тему
-      // смотри "Использование плоской темы" и "Кастомизация в legacy-приложениях"
-      public static overrideDefaultTheme(theme: ThemeIn): void;
-
-      // вспомогательный метод, позволяющий получить все ключи в теме (включая прототип)
-      public static getKeys(theme: Theme): string[];
-    }
-    ```
-
-    В любой созданной теме дефолтная тема лежит в прототипе, что позволяет получить доступ к базовому значению, например:
-
-    ```typescript
-    const darkTheme = {
-      get borderColorError() {
-        const baseValue = Object.getPrototypeOf(this).borderColorError;
-        return ColorFunctions.darken(baseValue, '20%');
-      },
-    };
-    ```
-
-4. Перед тем как использовать собственные значение, нужно c помощью `ThemeFactory.create` создать объект `Theme`, и получившуюся тему передать в `ThemeContext.Provider`.
-
-    ```jsx harmony static
-    import { Button, ButtonProps, Gapped, ThemeContext, ThemeFactory } from '@skbkontur/react-ui';
-
-    const myTheme = ThemeFactory.create({ btnBorderRadius: '10px' });
-
-    export const MyComponent = (props: { ok: ButtonProps, cancel: ButtonProps }) => {
-      return (
-        <ThemeContext.Provider value={myTheme}>
-          <Gapped>
-            <Button {...props.ok}>My round OK button</Button>
-            <Button {...props.cancel}>My round Cancel button</Button>
-          </Gapped>
-        </ThemeContext.Provider>
-      );
-    };
-    ```
-
-5. Для каждого компонента, в less стилях которого использовались (напрямую или косвенно) переменные из variables.less, с помощью codemode создан файл динамических стилей. Например (_ToastView.styles.ts_):
-
-    ```typescript
-    export const jsStyles = {
-      root(t: Theme) {
-        return css`
-          background: ${t.toastBg};
-          color: ${t.toastColor};
-        `;
-      },
-
-      link(t: Theme) {
-        return css`
-          color: ${t.toastLinkColor};
-        `;
-      },
-
-      close(t: Theme) {
-        return css`
-          color: ${t.toastCloseColor};
-
-          &:hover {
-            color: ${t.toastCloseHoverColor};
-          }
-        `;
-      },
-    };
-    ```
-
-    Из less файлов соответствующие стили были удалены.
-
-    Собственно стили в рантейме добавляются в `<head></head>` вашей страницы (по мере использования) библиотекой [emotion](https://www.npmjs.com/package/emotion#css). Используемая функция `css` возвращает строку - имя созданного класса - которое в дальнейшем попадает в `className` соответствующего элемента.
-
-    В react-ui используется отдельный инстанс emotion'а созданный с помощью [create-emotion](https://www.npmjs.com/package/create-emotion) - с ключом 'react-ui'. Это сделано по двум причинам:
-
-    - чтобы избежать конфликтов с проектами, которые используют или захотят использовать emotion;
-    - чтобы задать сгенерированным классам дополнительным `scope` для specificityLevel (см. Specificity Level).
-
-6. В каждом кастомизируемом компоненте `render()` завернут в `ThemeContext.Consumer`:
-
-    ```jsx harmony static
-    class MyComponent extends React.Component<{}, {}> {
-      public render() {
-        return (
-          <ThemeContext.Consumer>
-            {theme => {
-              this.theme = theme;
-              return this.renderMain();
-            }}
-          </ThemeContext.Consumer>
-        );
-      }
-    }
-    ```
-
-    Это позволяет использовать `this.theme` внутри любого рендерящего метода, например (_Spinner.tsx_):
-
-    ```jsx harmony static
-    import styles from './Spinner.less';
-    import { jsStyles } from './Spinner.styles';
-    import { cx } from '../../lib/theming/Emotion';
-
-    private _renderCloud = (type) => {
-      const { props, theme } = this;
-      const bgClassName = jsStyles.cloudBg(this.theme);
-      const strokeClassName = cx(
-        styles.cloudStroke,
-        props.dimmed ? jsStyles.cloudStrokeDimmed(theme) : jsStyles.cloudStroke(theme)
-      );
-
-      return (
-        <svg className={styles.cloud}>
-          <path className={bgClassName} />
-          <path className={strokeClassName} />
-        </svg>
-      );
-    };
-
-    private _renderCircle = (type) => {
-      const { props, theme } = this;
-      const strokeClassName = props.dimmed ?
-        jsStyles.circleStrokeDimmed(theme) :
-        jsStyles.circleStroke(theme);
-
-      return (
-        <svg className={cx(styles.circle, jsStyles.circle(theme))}>
-          <circle className={strokeClassName} />
-        </svg>
-      );
-    };
-    ```
-
-7\. PROFIT :)
-
-### Использование плоской темы
+### Подключение плоской темы
 
 Плоскую тему можно было "включить" вызвав метод `Uprgades.enableFlatDesign()`.
 На данный момент существует два механизма "включения" плоской темы:
@@ -243,34 +43,34 @@
 1. Путь джедая:
    В начале времен, где-то в _App.(j|t)sx_
 
-    ```jsx harmony static
-    import { ThemeContext } from '@skbkontur/react-ui';
-    import { FLAT_THEME } from '@skbkontur/react-ui/lib/theming/themes/FlatTheme';
+   ```jsx harmony static
+   import { ThemeContext } from '@skbkontur/react-ui';
+   import { FLAT_THEME } from '@skbkontur/react-ui/lib/theming/themes/FlatTheme';
 
-    const App = (
-      <ThemeContext.Provider value={FLAT_THEME}>
-        <div />
-      </ThemeContext.Provider>
-    );
-    ```
+   const App = (
+     <ThemeContext.Provider value={FLAT_THEME}>
+       <div />
+     </ThemeContext.Provider>
+   );
+   ```
 
 2. Для ленивых:
 
-    - выделить и скопировать "ThemeFactory.overrideDefaultTheme(FlatTheme)"
-    - ctrl+shift+f -> "Uprgades.enableFlatDesign()" -> enter;
-    - вставить "ThemeFactory.overrideDefaultTheme(FlatTheme)";
-    - alt+enter 2 раза (add import statement).
+   - выделить и скопировать "ThemeFactory.overrideDefaultTheme(FlatTheme)"
+   - ctrl+shift+f -> "Uprgades.enableFlatDesign()" -> enter;
+   - вставить "ThemeFactory.overrideDefaultTheme(FlatTheme)";
+   - alt+enter 2 раза (add import statement).
 
-    Должно получиться:
+   Должно получиться:
 
-    ```typescript
-    import { ThemeFactory } from '@skbkontur/react-ui/lib/theming/ThemeFactory';
-    import { FLAT_THEME } from '@skbkontur/react-ui/lib/theming/themes/FlatTheme';
+   ```typescript
+   import { ThemeFactory } from '@skbkontur/react-ui/lib/theming/ThemeFactory';
+   import { FLAT_THEME } from '@skbkontur/react-ui/lib/theming/themes/FlatTheme';
 
-    // вместо:
-    // Uprgades.enableFlatDesign();
-    ThemeFactory.overrideDefaultTheme(FLAT_THEME);
-    ```
+   // вместо:
+   // Uprgades.enableFlatDesign();
+   ThemeFactory.overrideDefaultTheme(FLAT_THEME);
+   ```
 
 ### Отказ от less
 

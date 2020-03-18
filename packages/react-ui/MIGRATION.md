@@ -25,7 +25,10 @@
 Начиная с 2.0 исходный код библиотеки распространяются в виде ES6 модулей. Это необходимо для обеспечения правильной работы tree-shaking.
 
 Кроме этого все публичные компоненты библиотеки доступны в виде именованных импортов из корня:
-`import { Button } from '@skbkontur/react-ui;`
+
+```js
+import { Button, Input } from '@skbkontur/react-ui;
+```
 
 Если вы каким-либо образом загружаете компоненты библиотеки в nodejs, например в unit тестах. Вам необходимо добавить в пути для трансформации путь до `@skbkontur/react-ui`, чтобы избежать ошибки `Error [ERR_REQUIRE_ESM]: Must use import to load ES Module` или `SyntaxError: Cannot use import statement outside a module`. При этом для сборки бандла в webpack конфиге ничего дополнительно настраивать не нужно.
 
@@ -49,7 +52,7 @@ const [name, setName] = useState('');
 <Input value={name} onValueChange={setName} />;
 ```
 
-Мы подготовили [codemod `transformOnChange`](https://github.com/skbkontur/retail-ui/pull/1900#transformOnChange) для перехода на новое API компонентов, но в виду множества вариантов использования свойств компонентов codemod покрывает только несколько достаточно очевидных сценариев, в тех местах где нельзя автоматически преобразовать `onChange` в `onValueChange` будет выводится сообщение.
+Мы подготовили [codemod `transformOnChange`](https://github.com/skbkontur/retail-ui/pull/1900#transformOnChange) для перехода на новое API компонентов, но в виду множества вариантов использования свойств компонентов codemod покрывает только несколько достаточно очевидных сценариев, в тех местах где нельзя автоматически преобразовать `onChange` в `onValueChange` будет выводится сообщение о неудачной попытке трансформации и необходимости внести изменения вручную.
 
 **WARN** Codemod должен применятся исключительно после применения `transformImportsAndExports`, в ином случае корректный результат не гарантируется.
 
@@ -58,11 +61,14 @@ const [name, setName] = useState('');
 Библиотека позиционируется как open-source, в том числе с возможностью использовать компоненты вне Контура. Поэтому все компоненты использующие фирменный стиль или api сервисов Контура с выпуском 2.0 переезжают в отдельный приватный [репозиторий](https://git.skbkontur.ru/ui/ui-parking) и npm пакет [@skbkontur/react-ui-addons](https://nexus.kontur.host/#browse/browse:kontur-npm:%40skbkontur%2Freact-ui-addons) в приватном npm репозитории `nexus`
 
 Чтобы начать использовать пакет `@skbkontur/react-ui-addons` из `nexus` необходимо выполнить на уровне проекта команду:
-`npm config set @skbkontur:registry https://nexus.kontur.host/repository/kontur-npm-group/` в результате будет создан файл `.npmrc` сообщающий npm, что все пакеты из `@skbkontur/*` теперь должны устанавливаться из соответствующего репозитория.
+```shell
+npm config set @skbkontur:registry https://nexus.kontur.host/repository/kontur-npm-group/
+```
+в результате будет создан файл `.npmrc` сообщающий npm, что все пакеты из `@skbkontur/*` теперь должны устанавливаться из соответствующего репозитория.
 
 Далее необходимо применить [codemod `moveToAddons`](https://github.com/skbkontur/retail-ui/pull/1900#moveToAddons), который исправляет пути импортов Контур-специфичных компонентов на импорты из `@skbkontur/react-ui-addons`
 
-При этом, если у вас нет возможности настроить nexus прямо сейчас, компоненты остаются в составе библиотеки до версии 3.0. В таком случае вам необходимо вернуть старое отображение компонентов `Loader` и `Spinner` с помощью [codemod `addCloudProp`](https://github.com/skbkontur/retail-ui/pull/1900#addCloudProp)
+При этом, если у вас нет возможности настроить nexus прямо сейчас, компоненты остаются в составе библиотеки до версии 3.0. В таком случае всё что вам нужно, это вернуть старое отображение компонентов `Loader` и `Spinner` с помощью [codemod `addCloudProp`](https://github.com/skbkontur/retail-ui/pull/1900#addCloudProp)
 
 **WARN** Codemod должен применятся исключительно после применения `transformImportsAndExports`, в ином случае корректный результат не гарантируется.
 
