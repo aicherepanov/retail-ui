@@ -1,18 +1,18 @@
 # Migration
 
-- [1.x - 2.0]()
-  - [Отказ от поддержки пакета `retail-ui`]()
-  - [Именованные экспорты, ES6 модули и tree-shaking]()
-  - [Изменена сигнатура `onChange`]()
-  - [Отдельный пакет для Контур-специфичных компонентов]()
-  - [Использование нативного ReactContext для `Theme(Locale-)Provider`]()
-  - [Встроены иконки из `@skbkontur/react-icons`]()
-  - [Удален устаревший код]()
-    - [`Lookup.js` и адаптеры для компонентов]()
-    - [Flow типизация]()
-    - [Устаревшие компоненты и свойства]()
-- [0.x - 1.0]()
-  - [Переход с кастомизации с помощью `less`](#from-less-to-js)
+- [1.x - 2.0](#1x---20)
+  - [Отказ от поддержки пакета `retail-ui`](#отказ-от-поддержки-пакета-retail-ui)
+  - [Именованные экспорты, ES6 модули и tree-shaking](#именованные-экспорты-es6-модули-и-tree-shaking)
+  - [Изменена сигнатура `onChange`](#изменена-сигнатура-onchange)
+  - [Отдельный пакет для Контур-специфичных компонентов](#отдельный-пакет-для-контур-специфичных-компонентов)
+  - [Использование нативного ReactContext для `Theme(Locale-)Provider`](#использование-нативного-reactcontext-для-themelocale-provider)
+  - [Встроены иконки из `@skbkontur/react-icons`](#встроены-иконки-из-skbkonturreact-icons)
+  - [Удален устаревший код](#удален-устаревший-код)
+    - [Flow типизация](#flow-типизация)
+    - [Устаревшие компоненты и свойства](#устаревшие-компоненты-и-свойства)
+    - [`Lookup.js` и адаптеры для компонентов](#lookupjs-и-адаптеры-для-компонентов)
+- [0.x - 1.0](#0x---10)
+  - [Переход с кастомизации с помощью `less`](#переход-с-кастомизации-с-помощью-less)
 
 ## 1.x - 2.0
 
@@ -61,9 +61,11 @@ const [name, setName] = useState('');
 Библиотека позиционируется как open-source, в том числе с возможностью использовать компоненты вне Контура. Поэтому все компоненты использующие фирменный стиль или api сервисов Контура с выпуском 2.0 переезжают в отдельный приватный [репозиторий](https://git.skbkontur.ru/ui/ui-parking) и npm пакет [@skbkontur/react-ui-addons](https://nexus.kontur.host/#browse/browse:kontur-npm:%40skbkontur%2Freact-ui-addons) в приватном npm репозитории `nexus`
 
 Чтобы начать использовать пакет `@skbkontur/react-ui-addons` из `nexus` необходимо выполнить на уровне проекта команду:
+
 ```shell
 npm config set @skbkontur:registry https://nexus.kontur.host/repository/kontur-npm-group/
 ```
+
 в результате будет создан файл `.npmrc` сообщающий npm, что все пакеты из `@skbkontur/*` теперь должны устанавливаться из соответствующего репозитория.
 
 Далее необходимо применить [codemod `moveToAddons`](https://github.com/skbkontur/retail-ui/pull/1900#moveToAddons), который исправляет пути импортов Контур-специфичных компонентов на импорты из `@skbkontur/react-ui-addons`
@@ -136,7 +138,7 @@ const MyTheme = ThemeFactory.create({ /* ... */ })
 
 ## 0.x - 1.0
 
-### <a name="from-less-to-js"></a> Переход с кастомизации с помощью `less`
+### Переход с кастомизации с помощью `less`
 
 Для перехода с кастомизации посредством переопределения less-переменных, необходимо превратить less-переменные в объект темы.
 Это можно сделать с помощью <a target="_blank" href="https://raw.githubusercontent.com/skbkontur/retail-ui/master/packages/react-ui-codemod/customization/variablesConverter.js">скрипта</a>
